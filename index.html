@@ -34,7 +34,8 @@
     <!-- Quick Sample Presets -->
     <div class="header-center">
       <span class="sample-label">Sample Documents:</span>
-      <button class="pill-btn active" id="btnSampleId" onclick="loadSample('idcard')">🪪 Identity Card</button>
+      <button class="pill-btn active" id="btnSampleSejour" onclick="loadSample('titredesejour')">🇫🇷 Titre de Séjour</button>
+      <button class="pill-btn" id="btnSampleId" onclick="loadSample('idcard')">🪪 Identity Card</button>
       <button class="pill-btn" id="btnSamplePass" onclick="loadSample('passport')">🛂 Passport (MRZ)</button>
       <button class="pill-btn" id="btnSampleLic" onclick="loadSample('license')">🚗 Driver's License</button>
     </div>
@@ -265,10 +266,27 @@
               </div>
             </div>
             <div class="form-field">
-              <label>Date of Expiry</label>
+              <label>Date of Expiry / Valid Until</label>
               <div class="input-with-badge">
                 <input type="text" id="fieldExpiryDate" readonly value="2032-04-09">
                 <span class="conf-badge" id="badgeExpiryDate">98.3%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-field">
+              <label>Type of Permit / Category</label>
+              <div class="input-with-badge">
+                <input type="text" id="fieldPermitType" readonly value="CARTE DE SEJOUR TEMPORAIRE">
+                <span class="conf-badge" id="badgePermitType">99.1%</span>
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Personal Number (N° Personnel)</label>
+              <div class="input-with-badge">
+                <input type="text" id="fieldPersonalNumber" readonly value="9924050723">
+                <span class="conf-badge" id="badgePersonalNumber">99.4%</span>
               </div>
             </div>
           </div>
