@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Identity Document Extractor & Biometric Inspection Suite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-badge">
+        <span class="brand-icon">🪪</span>
+        <div>
+          <span class="brand-title">VisionID · Biometric Extractor</span>
+          <span class="brand-subtitle">Computer Vision · YOLOv8 · Optical Character Recognition</span>
+        </div>
+      </div>
+      <div class="engine-badge">
+        <span class="engine-dot"></span> YOLOv8 CV ENGINE ACTIVE
+      </div>
+    </div>
+
+    <!-- Quick Sample Presets -->
+    <div class="header-center">
+      <span class="sample-label">Sample Documents:</span>
+      <button class="pill-btn active" onclick="loadSample('idcard')">🪪 Identity Card</button>
+      <button class="pill-btn" onclick="loadSample('passport')">🛂 Passport (MRZ)</button>
+      <button class="pill-btn" onclick="loadSample('license')">🚗 Driver's License</button>
+    </div>
+
+    <div class="header-right">
+      <a href="https://github.com/PradeepDEIVAMANI/FullStack--ID-Extractor" target="_blank" rel="noreferrer" class="btn btn-outline">
+        <span>GitHub Repo</span> ↗
+      </a>
+      <button class="btn btn-primary" onclick="runAutomatedExtraction()">
+        <span>⚡ Run Full Pipeline</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-wrapper">
+
+    <!-- Top Architecture Flow Strip -->
+    <section class="section-card architecture-strip">
+      <div class="strip-header">
+        <span class="eyebrow">DOCUMENT VERIFICATION PIPELINE</span>
+        <h3>Automated Ingestion, Neural Detection & OCR Architecture</h3>
+      </div>
+      <div class="flow-steps-grid">
+        <div class="flow-step">
+          <span class="step-num">01</span>
+          <h4>Image Acquisition</h4>
+          <p>Perspective warp & OpenCV contrast normalization</p>
+        </div>
+        <div class="flow-step-arrow">➔</div>
+        <div class="flow-step">
+          <span class="step-num">02</span>
+          <h4>YOLOv8 Detection</h4>
+          <p>Multi-class bounding box segmentation for photo & text ROIs</p>
+        </div>
+        <div class="flow-step-arrow">➔</div>
+        <div class="flow-step">
+          <span class="step-num">03</span>
+          <h4>Biometric Crop</h4>
+          <p>Isolated facial portrait extraction & resolution upscale</p>
+        </div>
+        <div class="flow-step-arrow">➔</div>
+        <div class="flow-step">
+          <span class="step-num">04</span>
+          <h4>OCR & Parsing</h4>
+          <p>Field tokenization, MRZ checksum validation & JSON schema</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Two-Column Interactive Studio -->
+    <div class="studio-grid">
+
+      <!-- Left Column: Document Canvas & Interactive Cropper -->
+      <section class="section-card canvas-card">
+        <div class="card-header-row">
+          <div>
+            <h3>Document Inspection Viewport</h3>
+            <p>Interactive bounding box visualizer and region-of-interest cropper.</p>
+          </div>
+          <div class="upload-btn-wrapper">
+            <input type="file" id="fileUploadInput" accept="image/*" onchange="handleFileUpload(event)">
+            <button class="btn btn-outline btn-sm">📁 Upload ID Image</button>
+          </div>
+        </div>
+
+        <!-- Canvas Container with Visual Bounding Boxes -->
+        <div class="canvas-viewport" id="canvasViewport">
+          <img id="documentImage" src="" alt="Identity Document">
+
+          <!-- Overlaid YOLOv8 Bounding Boxes -->
+          <div class="bbox-overlay" id="bboxOverlay">
+            <!-- Dynamically populated or rendered -->
+          </div>
+
+          <!-- Interactive Crop Selection Box -->
+          <div class="crop-box" id="cropBox">
+            <div class="crop-handle top-left"></div>
+            <div class="crop-handle top-right"></div>
+            <div class="crop-handle bottom-left"></div>
+            <div class="crop-handle bottom-right"></div>
+            <span class="crop-tag">SELECTION ROI</span>
+          </div>
+        </div>
+
+        <!-- Canvas Controls & Tools -->
+        <div class="canvas-controls-bar">
+          <div class="toggle-group">
+            <label class="switch">
+              <input type="checkbox" id="toggleBBoxes" checked onchange="toggleBoundingBoxes()">
+              <span class="slider"></span>
+            </label>
+            <span class="toggle-label">Show YOLOv8 Bounding Boxes</span>
+          </div>
+
+          <div class="action-buttons-row">
+            <button class="btn btn-secondary btn-sm" onclick="cropBiometricFace()">👤 Crop Face</button>
+            <button class="btn btn-secondary btn-sm" onclick="cropSelectedRoi()">✂️ Crop Selected ROI</button>
+            <button class="btn btn-primary btn-sm" onclick="runAutomatedExtraction()">⚡ Extract All Fields</button>
+          </div>
+        </div>
+
+        <!-- Extraction Progress Indicator -->
+        <div class="progress-box hidden" id="extractionProgress">
+          <div class="progress-text">
+            <span id="progressMessage">Analyzing document with YOLOv8...</span>
+            <span id="progressPercent">0%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-bar-fill" id="progressBarFill"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Extracted Biometrics & Structured KYC Fields -->
+      <section class="section-card results-card">
+        <div class="card-header-row">
+          <div>
+            <span class="eyebrow">PREDICTED ATTRIBUTES</span>
+            <h3>Extracted KYC Profile</h3>
+          </div>
+          <div class="status-chip valid" id="kycStatusBadge">
+            <span class="chip-dot"></span> VERIFIED
+          </div>
+        </div>
+
+        <!-- Biometric Face & Document Info Card -->
+        <div class="biometric-summary-card">
+          <div class="face-preview-box">
+            <img id="biometricFaceImg" src="" alt="Biometric Face">
+            <span class="face-badge">BIOMETRIC PHOTO</span>
+          </div>
+          <div class="biometric-meta">
+            <div class="meta-row">
+              <span class="meta-title">Confidence:</span>
+              <strong class="accent-val" id="metaConfidence">98.9% (YOLOv8)</strong>
+            </div>
+            <div class="meta-row">
+              <span class="meta-title">Document Format:</span>
+              <span id="metaDocType">EU National ID (TD1)</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-title">ICAO Compliance:</span>
+              <span class="compliance-tag pass">ISO/IEC 7810 Compliant</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-title">Security Check:</span>
+              <span class="security-text">✓ Microprint & Watermark Intact</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Structured Attributes Form -->
+        <form class="extracted-form" id="extractedForm" onsubmit="event.preventDefault()">
+          <div class="form-row">
+            <div class="form-field">
+              <label>Predicted Surname</label>
+              <div class="input-with-badge">
+                <input type="text" id="fieldSurname" readonly value="DEIVAMANI">
+                <span class="conf-badge">99.2%</span>
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Predicted Given Names</label>
+              <div class="input-with-badge">
+                <input type="text" id="fieldFirstName" readonly value="PRADEEP">
+                <span class="conf-badge">98.8%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-field">
+              <label>Date of Birth (DOB)</label>
+              <div class="input-with-badge">
+                <input type="text" id="fieldDob" readonly value="1996-08-22">
+                <span class="conf-badge">99.5%</span>
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Predicted Gender / Sex</label>
+              <div class="input-with-badge">
+                <input type="text" id="fieldGender" readonly value="MALE / M">
+                <span class="conf-badge">99.9%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-field">
+              <label>Document / ID Number</label>
+              <div class="input-with-badge">
+                <input type="text" id="fieldIdNumber" readonly value="FRA22081996541">
+                <span class="conf-badge">99.1%</span>
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Nationality</label>
+              <div class="input-with-badge">
+                <input type="text" id="fieldNationality" readonly value="FRENCH (FRA)">
+                <span class="conf-badge">98.5%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-field">
+              <label>Date of Issue</label>
+              <div class="input-with-badge">
+                <input type="text" id="fieldIssueDate" readonly value="2022-04-10">
+                <span class="conf-badge">97.6%</span>
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Date of Expiry</label>
+              <div class="input-with-badge">
+                <input type="text" id="fieldExpiryDate" readonly value="2032-04-09">
+                <span class="conf-badge">98.3%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Machine Readable Zone (MRZ) Display -->
+          <div class="mrz-container">
+            <label>Machine Readable Zone (MRZ) Checksum</label>
+            <div class="mrz-box" id="mrzDisplay">
+              IDFRA22081996541<<<<<<<<<<<<<<<0<br>
+              9608224M3204095FRA<<<<<<<<<<<8<br>
+              DEIVAMANI<<PRADEEP<<<<<<<<<<<<<<
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="form-action-buttons">
+            <button type="button" class="btn btn-outline" onclick="copyExtractedJson()">📋 Copy JSON</button>
+            <button type="button" class="btn btn-outline" onclick="downloadKycJson()">📥 Export JSON</button>
+            <button type="button" class="btn btn-primary" onclick="showAuditToast()">✅ Validate KYC Record</button>
+          </div>
+        </form>
+      </section>
+
+    </div>
+
+    <!-- Python & FastAPI Backend Deep Dive -->
+    <section class="section-card backend-card">
+      <div class="card-header-row">
+        <div>
+          <span class="eyebrow">PYTHON COMPUTER VISION ARCHITECTURE</span>
+          <h3>FastAPI & YOLOv8 Processing Pipeline</h3>
+          <p>How the neural object detector parses document bounding boxes and feeds OCR tokenizers.</p>
+        </div>
+      </div>
+
+      <div class="code-box">
+        <pre><code># Python FastAPI Backend (process_image & process_full_image)
+from fastapi import FastAPI, UploadFile
+from ultralytics import YOLO
+import cv2
+import numpy as np
+
+app = FastAPI(title="Identity Document YOLOv8 Extraction Service")
+model = YOLO("weights/best_id_detector.pt")  # Trained on ID cards & Passports
+
+@app.post("/process_full_image")
+async def extract_document_entities(file: UploadFile):
+    # 1. Perspective alignment via OpenCV Homography
+    image_bytes = await file.read()
+    image = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
+    
+    # 2. YOLOv8 Neural Inference for Bounding Boxes (Face, Name, DOB, ID, MRZ)
+    results = model(image, conf=0.75)
+    detections = []
+    
+    for r in results:
+        for box in r.boxes:
+            cls_name = model.names[int(box.cls)]
+            coords = box.xyxy[0].tolist()  # [x1, y1, x2, y2]
+            
+            # Crop ROI and run OCR text recognition
+            roi = image[int(coords[1]):int(coords[3]), int(coords[0]):int(coords[2])]
+            extracted_text = run_tesseract_ocr(roi)
+            detections.append({"class": cls_name, "box": coords, "text": extracted_text})
+            
+    return {"status": "SUCCESS", "entities": detections}</code></pre>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-wrap">
+      <span>AI Identity Document Extractor · Built by Pradeep Deivamani</span>
+      <a href="https://github.com/PradeepDEIVAMANI/FullStack--ID-Extractor" target="_blank" rel="noreferrer">View Repository on GitHub ↗</a>
+    </div>
+  </footer>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
