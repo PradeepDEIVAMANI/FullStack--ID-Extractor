@@ -7,6 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Cropper.js for Interactive Image Cropping -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -24,16 +26,17 @@
         </div>
       </div>
       <div class="engine-badge">
-        <span class="engine-dot"></span> YOLOv8 CV ENGINE ACTIVE
+        <span class="engine-dot" id="engineStatusDot"></span>
+        <span id="engineStatusText">YOLOv8 ENGINE ACTIVE</span>
       </div>
     </div>
 
     <!-- Quick Sample Presets -->
     <div class="header-center">
       <span class="sample-label">Sample Documents:</span>
-      <button class="pill-btn active" onclick="loadSample('idcard')">🪪 Identity Card</button>
-      <button class="pill-btn" onclick="loadSample('passport')">🛂 Passport (MRZ)</button>
-      <button class="pill-btn" onclick="loadSample('license')">🚗 Driver's License</button>
+      <button class="pill-btn active" id="btnSampleId" onclick="loadSample('idcard')">🪪 Identity Card</button>
+      <button class="pill-btn" id="btnSamplePass" onclick="loadSample('passport')">🛂 Passport (MRZ)</button>
+      <button class="pill-btn" id="btnSampleLic" onclick="loadSample('license')">🚗 Driver's License</button>
     </div>
 
     <div class="header-right">
@@ -90,31 +93,20 @@
         <div class="card-header-row">
           <div>
             <h3>Document Inspection Viewport</h3>
-            <p>Interactive bounding box visualizer and region-of-interest cropper.</p>
+            <p>Drag or resize the crop box to select any region, or inspect neural bounding boxes.</p>
           </div>
           <div class="upload-btn-wrapper">
             <input type="file" id="fileUploadInput" accept="image/*" onchange="handleFileUpload(event)">
-            <button class="btn btn-outline btn-sm">📁 Upload ID Image</button>
+            <button class="btn btn-outline btn-sm">📁 Upload Custom Image</button>
           </div>
         </div>
 
-        <!-- Canvas Container with Visual Bounding Boxes -->
+        <!-- Canvas Container with Cropper.js & Visual Bounding Boxes -->
         <div class="canvas-viewport" id="canvasViewport">
           <img id="documentImage" src="" alt="Identity Document">
 
           <!-- Overlaid YOLOv8 Bounding Boxes -->
-          <div class="bbox-overlay" id="bboxOverlay">
-            <!-- Dynamically populated or rendered -->
-          </div>
-
-          <!-- Interactive Crop Selection Box -->
-          <div class="crop-box" id="cropBox">
-            <div class="crop-handle top-left"></div>
-            <div class="crop-handle top-right"></div>
-            <div class="crop-handle bottom-left"></div>
-            <div class="crop-handle bottom-right"></div>
-            <span class="crop-tag">SELECTION ROI</span>
-          </div>
+          <div class="bbox-overlay" id="bboxOverlay"></div>
         </div>
 
         <!-- Canvas Controls & Tools -->
@@ -124,13 +116,31 @@
               <input type="checkbox" id="toggleBBoxes" checked onchange="toggleBoundingBoxes()">
               <span class="slider"></span>
             </label>
-            <span class="toggle-label">Show YOLOv8 Bounding Boxes</span>
+            <span class="toggle-label">Show YOLOv8 Detection Boxes</span>
           </div>
 
           <div class="action-buttons-row">
-            <button class="btn btn-secondary btn-sm" onclick="cropBiometricFace()">👤 Crop Face</button>
-            <button class="btn btn-secondary btn-sm" onclick="cropSelectedRoi()">✂️ Crop Selected ROI</button>
-            <button class="btn btn-primary btn-sm" onclick="runAutomatedExtraction()">⚡ Extract All Fields</button>
+            <button class="btn btn-secondary btn-sm" onclick="cropSelectedRoi()">✂️ Crop Selection</button>
+            <button class="btn btn-secondary btn-sm" onclick="cropBiometricFace()">👤 Auto-Crop Face</button>
+            <button class="btn btn-primary btn-sm" onclick="runAutomatedExtraction()">⚡ Run Extraction</button>
+          </div>
+        </div>
+
+        <!-- Real Cropped Output Preview (Cropper.js Result) -->
+        <div class="crop-output-container" id="cropOutputContainer">
+          <div class="crop-output-header">
+            <h4>✂️ Live Cropped Region Output</h4>
+            <span class="crop-dims" id="cropDimensions">Select an area above and click Crop</span>
+          </div>
+          <div class="crop-output-body">
+            <div class="crop-img-wrapper">
+              <img id="croppedResultImg" src="" alt="Cropped ROI" style="display:none;">
+              <span id="cropPlaceholder" class="crop-placeholder">Drag any area on the document above and click "✂️ Crop Selection"</span>
+            </div>
+            <div class="crop-actions">
+              <button type="button" class="btn btn-outline btn-sm" id="btnUseAsFace" onclick="sendCropToFace()" disabled>👤 Set as Biometric Face</button>
+              <button type="button" class="btn btn-outline btn-sm" id="btnDownloadCrop" onclick="downloadCroppedRoi()" disabled>💾 Download Crop</button>
+            </div>
           </div>
         </div>
 
@@ -154,7 +164,16 @@
             <h3>Extracted KYC Profile</h3>
           </div>
           <div class="status-chip valid" id="kycStatusBadge">
-            <span class="chip-dot"></span> VERIFIED
+            <span class="chip-dot"></span> <span id="kycStatusText">VERIFIED</span>
+          </div>
+        </div>
+
+        <!-- Document Validation Warning / Error Banner (Visible when non-ID is uploaded) -->
+        <div id="validationBanner" class="validation-banner hidden">
+          <div class="banner-icon">⚠️</div>
+          <div>
+            <h4 id="bannerTitle">Invalid Identity Document</h4>
+            <p id="bannerDesc">The uploaded image does not contain an identity document structure (No valid ID card, Passport MRZ, or Driver's License detected). Please upload a valid document.</p>
           </div>
         </div>
 
@@ -162,7 +181,7 @@
         <div class="biometric-summary-card">
           <div class="face-preview-box">
             <img id="biometricFaceImg" src="" alt="Biometric Face">
-            <span class="face-badge">BIOMETRIC PHOTO</span>
+            <span class="face-badge" id="faceBadgeText">BIOMETRIC PHOTO</span>
           </div>
           <div class="biometric-meta">
             <div class="meta-row">
@@ -175,11 +194,11 @@
             </div>
             <div class="meta-row">
               <span class="meta-title">ICAO Compliance:</span>
-              <span class="compliance-tag pass">ISO/IEC 7810 Compliant</span>
+              <span class="compliance-tag pass" id="complianceTag">ISO/IEC 7810 Compliant</span>
             </div>
             <div class="meta-row">
               <span class="meta-title">Security Check:</span>
-              <span class="security-text">✓ Microprint & Watermark Intact</span>
+              <span class="security-text" id="securityText">✓ Microprint & Watermark Intact</span>
             </div>
           </div>
         </div>
@@ -191,14 +210,14 @@
               <label>Predicted Surname</label>
               <div class="input-with-badge">
                 <input type="text" id="fieldSurname" readonly value="DEIVAMANI">
-                <span class="conf-badge">99.2%</span>
+                <span class="conf-badge" id="badgeSurname">99.2%</span>
               </div>
             </div>
             <div class="form-field">
               <label>Predicted Given Names</label>
               <div class="input-with-badge">
                 <input type="text" id="fieldFirstName" readonly value="PRADEEP">
-                <span class="conf-badge">98.8%</span>
+                <span class="conf-badge" id="badgeFirstName">98.8%</span>
               </div>
             </div>
           </div>
@@ -208,14 +227,14 @@
               <label>Date of Birth (DOB)</label>
               <div class="input-with-badge">
                 <input type="text" id="fieldDob" readonly value="1996-08-22">
-                <span class="conf-badge">99.5%</span>
+                <span class="conf-badge" id="badgeDob">99.5%</span>
               </div>
             </div>
             <div class="form-field">
               <label>Predicted Gender / Sex</label>
               <div class="input-with-badge">
                 <input type="text" id="fieldGender" readonly value="MALE / M">
-                <span class="conf-badge">99.9%</span>
+                <span class="conf-badge" id="badgeGender">99.9%</span>
               </div>
             </div>
           </div>
@@ -225,14 +244,14 @@
               <label>Document / ID Number</label>
               <div class="input-with-badge">
                 <input type="text" id="fieldIdNumber" readonly value="FRA22081996541">
-                <span class="conf-badge">99.1%</span>
+                <span class="conf-badge" id="badgeIdNumber">99.1%</span>
               </div>
             </div>
             <div class="form-field">
               <label>Nationality</label>
               <div class="input-with-badge">
                 <input type="text" id="fieldNationality" readonly value="FRENCH (FRA)">
-                <span class="conf-badge">98.5%</span>
+                <span class="conf-badge" id="badgeNationality">98.5%</span>
               </div>
             </div>
           </div>
@@ -242,14 +261,14 @@
               <label>Date of Issue</label>
               <div class="input-with-badge">
                 <input type="text" id="fieldIssueDate" readonly value="2022-04-10">
-                <span class="conf-badge">97.6%</span>
+                <span class="conf-badge" id="badgeIssueDate">97.6%</span>
               </div>
             </div>
             <div class="form-field">
               <label>Date of Expiry</label>
               <div class="input-with-badge">
                 <input type="text" id="fieldExpiryDate" readonly value="2032-04-09">
-                <span class="conf-badge">98.3%</span>
+                <span class="conf-badge" id="badgeExpiryDate">98.3%</span>
               </div>
             </div>
           </div>
@@ -287,7 +306,7 @@
 
       <div class="code-box">
         <pre><code># Python FastAPI Backend (process_image & process_full_image)
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, UploadFile, HTTPException
 from ultralytics import YOLO
 import cv2
 import numpy as np
@@ -297,20 +316,20 @@ model = YOLO("weights/best_id_detector.pt")  # Trained on ID cards & Passports
 
 @app.post("/process_full_image")
 async def extract_document_entities(file: UploadFile):
-    # 1. Perspective alignment via OpenCV Homography
     image_bytes = await file.read()
     image = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
     
-    # 2. YOLOv8 Neural Inference for Bounding Boxes (Face, Name, DOB, ID, MRZ)
-    results = model(image, conf=0.75)
+    # 1. Document verification check: Ensure image has document properties
+    results = model(image, conf=0.70)
+    if not results or len(results[0].boxes) == 0:
+        raise HTTPException(status_code=422, detail="No valid Identity Document detected in image")
+
+    # 2. Extract bounding boxes & run OCR per ROI
     detections = []
-    
     for r in results:
         for box in r.boxes:
             cls_name = model.names[int(box.cls)]
             coords = box.xyxy[0].tolist()  # [x1, y1, x2, y2]
-            
-            # Crop ROI and run OCR text recognition
             roi = image[int(coords[1]):int(coords[3]), int(coords[0]):int(coords[2])]
             extracted_text = run_tesseract_ocr(roi)
             detections.append({"class": cls_name, "box": coords, "text": extracted_text})
@@ -330,6 +349,8 @@ async def extract_document_entities(file: UploadFile):
 
   <div id="toast" class="toast hidden"></div>
 
+  <!-- Cropper.js Script -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
